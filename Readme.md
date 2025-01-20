@@ -1,5 +1,7 @@
 # Milestone II Timeline
 
+![alt text](image.png)
+
 ## January
 
 - **Jan 7**: Course begins; Coursera content opens
