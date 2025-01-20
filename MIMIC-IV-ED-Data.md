@@ -26,53 +26,89 @@ Data were extracted from XML files and transformed into a denormalized relationa
 
 ### edstays
 
-Tracks patient stays in the ED. Key columns:
+Patient stays are tracked in the `edstays` table. Each row has a unique `stay_id`, representing a unique patient stay in the ED. Key columns:
 
-- **subject_id**: Unique patient identifier.
-- **stay_id**: Unique ED stay identifier.
-- **intime/outtime**: Admission/discharge times.
-- **gender/race**: Patient demographics.
-- **arrival_transport**: Admission mechanism (e.g., AMBULANCE, WALK IN).
-- **disposition**: Discharge location (e.g., HOME, ADMITTED).
+- **subject_id**: Unique patient identifier (links across multiple stays)
+- **hadm_id**: Hospital admission ID (if admitted)
+- **stay_id**: Unique ED stay identifier
+- **intime/outtime**: Admission/discharge times
+- **gender/race**: Patient demographics
+- **arrival_transport**: Admission mechanism (AMBULANCE, HELICOPTER, WALK IN, UNKNOWN, OTHER)
+- **disposition**: Discharge location (ADMITTED, ELOPED, EXPIRED, HOME, LEFT AGAINST MEDICAL ADVICE, LEFT WITHOUT BEING SEEN, TRANSFER, OTHER)
+
+Note: `subject_id` can link MIMIC-IV-ED with MIMIC-IV for additional information (e.g., age) and with MIMIC-CXR's PatientID DICOM attribute for chest x-rays.
 
 ### diagnosis
 
-Provides ICD-9 or ICD-10 coded diagnoses. Columns:
+Provides coded diagnoses using ICD-9 or ICD-10. Columns:
 
-- **icd_code**: Diagnosis code.
-- **icd_title**: Textual description.
-- **seq_num**: Relevance order (1 = highest).
+- **subject_id**: Patient identifier
+- **stay_id**: ED stay identifier
+- **seq_num**: Pseudo-order (1-9, 1 = highest relevance)
+- **icd_code**: Coded diagnosis
+- **icd_version**: ICD version (9 or 10)
+- **icd_title**: Textual description
+
+Note: Contains only ED-specific diagnoses. Hospital admission diagnoses are separate and available in MIMIC-IV.
 
 ### medrecon
 
-Details medication reconciliation. Columns:
+Medicine reconciliation table listing medications taken prior to ED stay. Columns:
 
-- **name**: Medicine name.
-- **gsn/ndc**: Generic/National Drug Codes.
-- **etccode/etcdescription**: Drug ontology group.
+- **subject_id/stay_id**: Patient and stay identifiers
+- **charttime**: Documentation time
+- **name**: Medicine description
+- **gsn**: Generic Sequence Number (0 if missing)
+- **ndc**: National Drug Code (0 if missing)
+- **etc_rn**: Sequential identifier for multiple classifications
+- **etccode/etcdescription**: Drug ontology group code and description
+
+Multiple rows may exist per medication due to multiple classification groups.
 
 ### pyxis
 
-Lists medications dispensed via the BD Pyxis MedStation. Columns:
+Records medications dispensed via BD Pyxis MedStation. Columns:
 
-- **charttime**: Dispensation time.
-- **name**: Medication description.
-- **gsn**: Generic Sequence Number.
+- **subject_id/stay_id**: Patient and stay identifiers
+- **charttime**: Dispensation time
+- **med_rn**: Multiple medication delineator
+- **name**: Medication description and formulation
+- **gsn_rn**: GSN delineator
+- **gsn**: Generic Sequence Number (0 if missing)
+
+Note: Not all medications (e.g., large fluid volumes) are recorded in this table.
 
 ### triage
 
-Captures patient data at triage. Columns:
+Contains initial patient assessment data. Columns:
 
-- **temperature, heartrate, resprate, o2sat, sbp, dbp**: Vital signs.
-- **acuity**: Severity level (1 = highest).
-- **chiefcomplaint**: Patient-reported reason for visit.
+- **subject_id/stay_id**: Patient and stay identifiers
+- **Vital Signs**:
+  - temperature
+  - heartrate
+  - resprate
+  - o2sat
+  - sbp (systolic blood pressure)
+  - dbp (diastolic blood pressure)
+- **pain**: Patient-reported pain level
+- **acuity**: Severity level (1-5, 1 = highest)
+- **chiefcomplaint**: Patient's reason for visit (comma-separated, PHI replaced with "___")
 
 ### vitalsign
 
-Logs periodic vital signs during the stay. Columns:
+Records aperiodic vital signs during stay. Columns:
 
-- **charttime**: Time recorded.
-- **rhythm**: Heart rhythm.
+- **subject_id/stay_id**: Patient and stay identifiers
+- **charttime**: Recording time
+- **Vital Signs**:
+  - temperature
+  - heartrate
+  - resprate
+  - o2sat
+  - sbp
+  - dbp
+- **rhythm**: Heart rhythm
+- **pain**: Pain level
 
 ---
 
