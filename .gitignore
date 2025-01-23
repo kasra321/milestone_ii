@@ -1,2 +1,4 @@
-Gitignore
-.env
+# ignora ll .env files
+*.env
+*.pyc
+
