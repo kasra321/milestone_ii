@@ -15,10 +15,16 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 # Demo data directory
 DEMO_DATA_DIR = os.path.join(ROOT_DIR, 'data', 'demo')
 
+
 # GCP settings
 GCP_PROJECT_ID = os.getenv('GCP_PROJECT_ID')
 PHYSIONET_PROJECT = 'physionet-data'  # Project where MIMIC data is hosted
-MIMIC_DATASET = 'mimiciv_ed'  # The exact BigQuery dataset name
+
+# Update the constants section
+MIMIC_DATASETS = {
+    'ed': 'mimiciv_ed',
+    'hosp': 'mimiciv_hosp'
+}
 
 class MIMICDF:
     def __init__(self, source: Literal['demo', 'gcp'] = 'demo', credentials=None):
@@ -39,6 +45,20 @@ class MIMICDF:
         if source == 'gcp':
             self.bq_client = get_bigquery_client(GCP_PROJECT_ID, credentials)
             
+        # Add dataset mapping for each table
+        self.table_dataset_map = {
+            # ED tables
+            'edstays': 'ed',
+            'vitalsign': 'ed',
+            'triage': 'ed',
+            'pyxis': 'ed',
+            'medrecon': 'ed',
+            'diagnosis': 'ed',
+            # HOSP tables - add your hosp tables here
+            'patients': 'hosp',
+            # Add more table mappings as needed
+        }
+        
     def _load(self, table_name: str) -> pd.DataFrame:
         """Internal method to load and cache dataframes."""
         if table_name not in self._cache:
@@ -51,9 +71,13 @@ class MIMICDF:
                     )
                 self._cache[table_name] = pd.read_csv(file_path)
             else:  # bigquery
+                if table_name not in self.table_dataset_map:
+                    raise ValueError(f"Unknown table: {table_name}. Please add it to table_dataset_map")
+                    
+                dataset = MIMIC_DATASETS[self.table_dataset_map[table_name]]
                 self._cache[table_name] = self.bq_client.get_table(
                     PHYSIONET_PROJECT, 
-                    MIMIC_DATASET, 
+                    dataset,
                     table_name
                 )
                     
