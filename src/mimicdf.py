@@ -6,6 +6,8 @@ from typing import Literal
 from google.cloud import bigquery
 from dotenv import load_dotenv
 import tempfile
+import requests
+from time import sleep
 
 # Load environment variables
 load_dotenv()
@@ -23,10 +25,14 @@ PHYSIONET_PROJECT = 'physionet-data'  # Project where MIMIC data is hosted
 # Update the constants section
 MIMIC_DATASETS = {
     'ed': 'mimiciv_ed',
-    'hosp': 'mimiciv_hosp'
+    'hosp': 'mimiciv_hosp',
+    'derived': 'mimiciv_derived'
 }
 
 class MIMICDF:
+
+    # constructor functions
+
     def __init__(self, source: Literal['demo', 'gcp'] = 'demo', credentials=None):
         """
         Initialize MIMICDF with either demo data or BigQuery data
@@ -56,7 +62,8 @@ class MIMICDF:
             'diagnosis': 'ed',
             # HOSP tables - add your hosp tables here
             'patients': 'hosp',
-            # Add more table mappings as needed
+            # derived tables
+            'age': 'derived',
         }
         
     def _load(self, table_name: str) -> pd.DataFrame:
@@ -90,6 +97,7 @@ class MIMICDF:
         print("Clearing cache")
         self._cache.clear()
 
+    # data processing functions
 
     def edstays(self) -> pd.DataFrame:
         """Base cohort from edstays with demographics."""
@@ -155,6 +163,13 @@ class MIMICDF:
         """Diagnosis codes and descriptions."""
         return self._load('diagnosis')
 
+    def ndc_mapping(self) -> pd.DataFrame:
+        """NDC to ATC-4 mapping."""
+        df = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'ndc_mapping.csv'))
+        df.columns = ['ndc', 'atc4']
+        df['ndc'] = df['ndc'].str.replace('-', '')
+        return df
+
     def medications(self) -> pd.DataFrame:
         """Combined medication records from both pyxis and medrecon."""
         pyxis = self.pyxis()
@@ -197,10 +212,21 @@ class MIMICDF:
 
     def subjects_demographics(self) -> pd.DataFrame:
         """Subjects demographics"""
+        
+        # load edstays
         edstays = self.edstays()
-        columns = ['subject_id', 'gender', 'race']
-        filtered_edstays = edstays[columns]
+        edstays_columns = ['subject_id', 'gender', 'race']
+        filtered_edstays = edstays[edstays_columns]
+
+        # load age
+        age = self._load('age')
+        age_columns = ['subject_id', 'age']
+        filtered_age = age[age_columns]
+
+        # merge edstays and age
+        demographics = filtered_edstays.merge(filtered_age, on='subject_id', how='left')
         demographics = filtered_edstays.groupby('subject_id').first().reset_index()
+        
         # Create a mapping dictionary
         race_mapping = {
             # White categories
@@ -260,3 +286,17 @@ class MIMICDF:
         edstays['los_minutes'] = (edstays['outtime'] - edstays['intime']).dt.total_seconds() / 60
         edstays_time = edstays[columns]
         return edstays_time
+
+    def med_records(self, stay_id: int) -> pd.DataFrame:
+        """
+        Get all medication records from pyxis for a specific stay_id.
+        
+        Args:
+            stay_id: The ED stay identifier
+            
+        Returns:
+            pd.DataFrame: Medication records for the specified stay sorted by charttime
+        """
+        pyxis_df = self.pyxis()
+        stay_meds = pyxis_df[pyxis_df['stay_id'] == stay_id].sort_values('charttime')
+        return stay_meds
