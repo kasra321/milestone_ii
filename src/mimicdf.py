@@ -117,9 +117,10 @@ class MIMICDF:
                 # Convert to float and clip between 0 and 10
                 val = float(x)
                 val = min(val, 10)  # Clip at 10
+                if val < 0:
+                    return pd.NA
                 return int(val)  # Round down by converting to int
             except (ValueError, TypeError):
-                # Return -1 for non-numeric values or missing (None/NaN)
                 return pd.NA
 
         def map_acuity(x):
@@ -210,7 +211,7 @@ class MIMICDF:
         
         return combined.sort_values(['subject_id', 'stay_id', 'charttime'])
 
-    def subjects_demographics(self) -> pd.DataFrame:
+    def demographics(self) -> pd.DataFrame:
         """Subjects demographics"""
         
         # load edstays
@@ -280,12 +281,15 @@ class MIMICDF:
     def edstays_time(self) -> pd.DataFrame:
         """Edstays time series"""
         edstays = self.edstays()
-        columns = ['stay_id', 'subject_id', 'intime', 'outtime', 'dow', 'hour', 'los_minutes']
-        edstays['dow'] = edstays['intime'].dt.day_name()
-        edstays['hour'] = edstays['intime'].dt.hour
-        edstays['los_minutes'] = (edstays['outtime'] - edstays['intime']).dt.total_seconds() / 60
-        edstays_time = edstays[columns]
-        return edstays_time
+        
+        # Create time-related columns
+        df = pd.DataFrame()
+        df['stay_id'] = edstays['stay_id']
+        df['dow'] = edstays['intime'].dt.day_name()
+        df['hour'] = edstays['intime'].dt.hour
+        df['los_minutes'] = (edstays['outtime'] - edstays['intime']).dt.total_seconds() / 60
+        
+        return df
 
     def med_records(self, stay_id: int) -> pd.DataFrame:
         """
@@ -300,3 +304,65 @@ class MIMICDF:
         pyxis_df = self.pyxis()
         stay_meds = pyxis_df[pyxis_df['stay_id'] == stay_id].sort_values('charttime')
         return stay_meds
+
+    def age(self) -> pd.DataFrame:
+        """Age of subjects"""
+        age = self._load('age')
+        return age
+
+    def gmm_data(self) -> pd.DataFrame:
+        """GMM data with proper handling of nullable integers and time features"""
+        print("Loading edstays...")
+        edstays = self.edstays()
+        
+        print("Loading age data...")
+        age = self.age()
+        
+        print("Loading time features...")
+        edstays_time = self.edstays_time()
+        
+        print("Loading triage data...")
+        triage = self.triage()
+        
+        print("Processing age calculations...")
+        # Start with just the columns we need from edstays
+        df = edstays[['subject_id', 'hadm_id', 'stay_id', 'gender', 'race', 
+                      'arrival_transport', 'disposition', 'intime', 'outtime']]
+        
+        # Clean up arrival_transport
+        df['arrival_transport'] = df['arrival_transport'].apply(
+            lambda x: 'WALK IN' if x == 'WALK IN'
+            else 'AMBULANCE' if x == 'AMBULANCE'
+            else 'OTHER'
+        )
+        
+        # Clean up disposition
+        df['disposition'] = df['disposition'].apply(
+            lambda x: 'HOME' if x == 'HOME'
+            else 'ADMITTED' if x == 'ADMITTED'
+            else 'OTHER'
+        )
+        
+        # Merge with age data
+        anchor_age = age[['subject_id', 'anchor_age', 'anchor_year']]
+        df = df.merge(anchor_age, on='subject_id', how='left')
+        
+        print("Calculating ED visit age...")
+        df['age_at_ed'] = df['anchor_age'] + (df['intime'].dt.year - df['anchor_year'])
+        df['age_at_ed'] = df['age_at_ed'].astype('Int64')
+        
+        print("Merging time features...")
+        df = df.merge(edstays_time, on='stay_id', how='left')
+        
+        print("Merging triage features...")
+        triage_features = triage.drop(['subject_id', 'chiefcomplaint'], axis=1)
+        df = df.merge(triage_features, on='stay_id', how='left')
+        
+        print("Cleaning up columns...")
+        df = df.drop(['intime', 'outtime', 'anchor_year', 'anchor_age', 'hadm_id'], axis=1)
+        
+        print(f'\n Dataframe shape: {df.shape} \n')
+        print('Dataframe info: \n')
+        print(df.info())
+
+        return df
