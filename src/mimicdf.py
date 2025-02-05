@@ -31,6 +31,41 @@ MIMIC_DATASETS = {
 
 class MIMICDF:
 
+    """
+    MIMICDF (MIMIC Database Interface)
+    
+    A class to interface with the MIMIC-IV Emergency Department database, supporting both
+    local demo data and Google BigQuery access.
+
+    Available Methods:
+        edstays(): Get base cohort from edstays with demographics
+        demographics(): Get subject demographics including gender, race, and age
+        age(): Get age data for subjects
+        diagnosis(): Get diagnosis codes and descriptions
+        edstays_time(): Get edstays time series data including day of week and length of stay
+        med_records(): Get medication records for a specific stay_id
+        medications(): Get combined medication records from pyxis and medrecon
+        pyxis(): Get medication dispensing records
+        triage(): Get triage assessments
+        vitals(): Get vital signs data
+        model_data(): Get preprocessed data ready for modeling
+        clear_cache(): Clear cached dataframes to free memory
+
+    Args:
+        source (str): Data source - either 'demo' for local demo data or 'gcp' for BigQuery data
+        credentials (google.oauth2.credentials.Credentials, optional): Google Cloud credentials for BigQuery access
+
+    Example:
+        # For demo data
+        mimic = MIMICDF(source='demo')
+        
+        # For BigQuery data
+        credentials = service_account.Credentials.from_service_account_file('path/to/credentials.json')
+        mimic = MIMICDF(source='gcp', credentials=credentials)
+        
+        # Get ED stays data
+        edstays_df = mimic.edstays()
+    """
     # constructor functions
 
     def __init__(self, source: Literal['demo', 'gcp'] = 'demo', credentials=None):
@@ -310,8 +345,8 @@ class MIMICDF:
         age = self._load('age')
         return age
 
-    def gmm_data(self) -> pd.DataFrame:
-        """GMM data with proper handling of nullable integers and time features"""
+    def ed_data(self) -> pd.DataFrame:
+        """ED data with proper handling of nullable integers and time features"""
         print("Loading edstays...")
         edstays = self.edstays()
         

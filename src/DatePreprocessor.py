@@ -45,7 +45,7 @@ class DataPreprocessor:
     
     def prepare_data(self):
         """Main pipeline for data preparation"""
-        data = self.data.gmm_data()  # Get raw data
+        data = self.data.ed_data()  # Get raw data
         
         # Apply cleaning functions
         data = self.clean_blood_pressure(data)
