@@ -2,3 +2,6 @@
 *.env
 *.pyc
 
+src/__pycache__/mimicdf.cpython-313.pyc
+notes.txt
+src/__pycache__/mimicdf.cpython-313.pyc
