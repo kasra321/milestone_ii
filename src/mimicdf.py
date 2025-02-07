@@ -350,6 +350,9 @@ class MIMICDF:
         print("Loading edstays...")
         edstays = self.edstays()
         
+        print("Loading demographics...")
+        demographics = self.demographics()
+        
         print("Loading age data...")
         age = self.age()
         
@@ -360,9 +363,10 @@ class MIMICDF:
         triage = self.triage()
         
         print("Processing age calculations...")
-        # Start with just the columns we need from edstays
-        df = edstays[['subject_id', 'hadm_id', 'stay_id', 'gender', 'race', 
+        # Start with just the columns we need from edstays and merge with demographics for remapped race
+        df = edstays[['subject_id', 'hadm_id', 'stay_id', 'gender', 
                       'arrival_transport', 'disposition', 'intime', 'outtime']]
+        df = df.merge(demographics[['subject_id', 'race']], on='subject_id', how='left')
         
         # Clean up arrival_transport
         df['arrival_transport'] = df['arrival_transport'].apply(
