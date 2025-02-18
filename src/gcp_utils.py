@@ -15,8 +15,11 @@ class BigQueryClient:
         """Initialize BigQuery client"""
         self.project_id = project_id
         try:
-            # Always try to use application default credentials first
-            self.client = bigquery.Client(project=project_id)
+            # Use provided credentials if available
+            self.client = bigquery.Client(
+                project=project_id,
+                credentials=credentials
+            )
             
             # Test access specifically to MIMIC dataset
             test_query = """
@@ -77,5 +80,9 @@ def get_bigquery_client(
     if isinstance(credentials, str):
         # If credentials is a string, treat it as a path
         credentials = service_account.Credentials.from_service_account_file(credentials)
-    # If credentials is already a Credentials object or None, pass it through
+    elif credentials is None:
+        # If no credentials provided, try to load from default path
+        credentials = service_account.Credentials.from_service_account_file(
+            '/home/kasra/Development/config/copper-actor-403003-f084a282499a.json'
+        )
     return BigQueryClient(project_id, credentials)

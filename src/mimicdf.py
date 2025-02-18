@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 import pandas as pd
 from .gcp_utils import get_bigquery_client
-from typing import Literal
+from typing_extensions import Literal
 from google.cloud import bigquery
 from dotenv import load_dotenv
 import tempfile
@@ -48,7 +48,7 @@ class MIMICDF:
         pyxis(): Get medication dispensing records
         triage(): Get triage assessments
         vitals(): Get vital signs data
-        model_data(): Get preprocessed data ready for modeling
+        ed_data(): Get preprocessed data ready for modeling
         clear_cache(): Clear cached dataframes to free memory
 
     Args:
