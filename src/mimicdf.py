@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 import tempfile
 import requests
 from time import sleep
+import google.auth
 
 # Load environment variables
 load_dotenv()
@@ -37,19 +38,51 @@ class MIMICDF:
     A class to interface with the MIMIC-IV Emergency Department database, supporting both
     local demo data and Google BigQuery access.
 
-    Available Methods:
-        edstays(): Get base cohort from edstays with demographics
-        demographics(): Get subject demographics including gender, race, and age
-        age(): Get age data for subjects
-        diagnosis(): Get diagnosis codes and descriptions
-        edstays_time(): Get edstays time series data including day of week and length of stay
-        med_records(): Get medication records for a specific stay_id
-        medications(): Get combined medication records from pyxis and medrecon
-        pyxis(): Get medication dispensing records
-        triage(): Get triage assessments
-        vitals(): Get vital signs data
-        ed_data(): Get preprocessed data ready for modeling
-        clear_cache(): Clear cached dataframes to free memory
+    Methods:
+        edstays() -> pd.DataFrame
+            Get base cohort from ED stays including admission times and basic demographics
+        
+        demographics() -> pd.DataFrame
+            Get subject demographics with standardized race categories
+        
+        age() -> pd.DataFrame
+            Get anchor age data for subjects
+        
+        diagnosis() -> pd.DataFrame
+            Get ED visit diagnosis codes and descriptions
+        
+        edstays_time() -> pd.DataFrame
+            Get time-based features including day of week, hour, and length of stay
+        
+        med_records(stay_id: int) -> pd.DataFrame
+            Get medication records for a specific ED stay
+        
+        medications() -> pd.DataFrame
+            Get combined medication records from both Pyxis and medication reconciliation
+        
+        pyxis() -> pd.DataFrame
+            Get medication dispensing records from Pyxis
+        
+        triage() -> pd.DataFrame
+            Get triage assessments including vitals and acuity scores
+        
+        vitals() -> pd.DataFrame
+            Get vital signs measurements during ED stay
+        
+        vitals_triage() -> pd.DataFrame
+            Get combined vital signs from both regular measurements and triage
+        
+        ed_data() -> pd.DataFrame
+            Get preprocessed dataset combining demographics, vitals, and time features
+        
+        clear_cache()
+            Clear cached dataframes to free memory
+        
+        create_connection(project_id: str) -> MIMICDF
+            Create a new MIMICDF instance with GCP credentials
+
+        create_demo() -> MIMICDF
+            Create a new MIMICDF instance with demo data
 
     Args:
         source (str): Data source - either 'demo' for local demo data or 'gcp' for BigQuery data
@@ -127,6 +160,35 @@ class MIMICDF:
         return self._cache[table_name]
 
 
+    @staticmethod
+    def create_connection(project_id: str = 'copper-actor-403003'):
+        """
+        Create a new MIMICDF instance with GCP credentials.
+        
+        Args:
+            project_id: GCP project ID. Defaults to the project's default ID.
+        
+        Returns:
+            MIMICDF: A configured MIMICDF instance
+        """
+        os.environ['GCP_PROJECT_ID'] = project_id
+        
+        # Use application default credentials
+        credentials, _ = google.auth.default()
+        
+        return MIMICDF(source='gcp', credentials=credentials)
+    
+    @staticmethod
+    def create_demo():
+        """
+        Create a new MIMICDF instance with demo data.
+        
+        Returns:
+            MIMICDF: A configured MIMICDF instance using local demo data
+        """
+        return MIMICDF(source='demo')
+
+    @staticmethod
     def clear_cache(self):
         """Clear cached dataframes to free memory."""
         print("Clearing cache")
@@ -261,7 +323,7 @@ class MIMICDF:
 
         # merge edstays and age
         demographics = filtered_edstays.merge(filtered_age, on='subject_id', how='left')
-        demographics = filtered_edstays.groupby('subject_id').first().reset_index()
+        demographics = demographics.groupby('subject_id').first().reset_index()
         
         # Create a mapping dictionary
         race_mapping = {
@@ -341,9 +403,10 @@ class MIMICDF:
         return stay_meds
 
     def age(self) -> pd.DataFrame:
-        """Age of subjects"""
+        """Age of subjects - returns only the most recent age record per subject"""
         age = self._load('age')
-        return age
+        # Sort by anchor_year descending and take the most recent record per subject
+        return age.sort_values('anchor_year', ascending=False).groupby('subject_id').first().reset_index()
 
     def ed_data(self) -> pd.DataFrame:
         """ED data with proper handling of nullable integers and time features"""
@@ -352,38 +415,13 @@ class MIMICDF:
         
         print("Loading demographics...")
         demographics = self.demographics()
-        
-        print("Loading age data...")
-        age = self.age()
-        
-        print("Loading time features...")
-        edstays_time = self.edstays_time()
-        
-        print("Loading triage data...")
-        triage = self.triage()
-        
-        print("Processing age calculations...")
-        # Start with just the columns we need from edstays and merge with demographics for remapped race
         df = edstays[['subject_id', 'hadm_id', 'stay_id', 'gender', 
                       'arrival_transport', 'disposition', 'intime', 'outtime']]
         df = df.merge(demographics[['subject_id', 'race']], on='subject_id', how='left')
         
-        # Clean up arrival_transport
-        df['arrival_transport'] = df['arrival_transport'].apply(
-            lambda x: 'WALK IN' if x == 'WALK IN'
-            else 'AMBULANCE' if x == 'AMBULANCE'
-            else 'OTHER'
-        )
-        
-        # Clean up disposition
-        df['disposition'] = df['disposition'].apply(
-            lambda x: 'HOME' if x == 'HOME'
-            else 'ADMITTED' if x == 'ADMITTED'
-            else 'OTHER'
-        )
-        
-        # Merge with age data
-        anchor_age = age[['subject_id', 'anchor_age', 'anchor_year']]
+        print("Loading age data...")
+        # Use the updated age() method which returns one record per subject
+        anchor_age = self.age()[['subject_id', 'anchor_age', 'anchor_year']]
         df = df.merge(anchor_age, on='subject_id', how='left')
         
         print("Calculating ED visit age...")
@@ -391,9 +429,11 @@ class MIMICDF:
         df['age_at_ed'] = df['age_at_ed'].astype('Int64')
         
         print("Merging time features...")
+        edstays_time = self.edstays_time()
         df = df.merge(edstays_time, on='stay_id', how='left')
         
         print("Merging triage features...")
+        triage = self.triage()
         triage_features = triage.drop(['subject_id', 'chiefcomplaint'], axis=1)
         df = df.merge(triage_features, on='stay_id', how='left')
         
@@ -404,4 +444,65 @@ class MIMICDF:
         print('Dataframe info: \n')
         print(df.info())
 
+        print("Verifying no duplicate stay_ids...")
+        initial_rows = len(df)
+        df = df.drop_duplicates()
+        final_rows = len(df)
+        if initial_rows != final_rows:
+            print(f"Warning: Removed {initial_rows - final_rows} duplicate rows")
+        
+        return df
+
+    def ed_data_debug(self) -> pd.DataFrame:
+        """Debug version of ed_data() that prints detailed merge information"""
+        print("Loading edstays...")
+        edstays = self.edstays()
+        print(f"Edstays shape: {edstays.shape}")
+        
+        print("\nLoading demographics...")
+        demographics = self.demographics()
+        print(f"Demographics shape: {demographics.shape}")
+        df = edstays[['subject_id', 'hadm_id', 'stay_id', 'gender', 
+                      'arrival_transport', 'disposition', 'intime', 'outtime']]
+        df = df.merge(demographics[['subject_id', 'race']], on='subject_id', how='left')
+        print(f"After demographics merge shape: {df.shape}")
+        
+        print("\nLoading age data...")
+        anchor_age = self.age()[['subject_id', 'anchor_age', 'anchor_year']]
+        print(f"Age data shape: {anchor_age.shape}")
+        df = df.merge(anchor_age, on='subject_id', how='left')
+        print(f"After age merge shape: {df.shape}")
+        
+        print("\nCalculating ED visit age...")
+        df['age_at_ed'] = df['anchor_age'] + (df['intime'].dt.year - df['anchor_year'])
+        df['age_at_ed'] = df['age_at_ed'].astype('Int64')
+        
+        print("\nLoading time features...")
+        edstays_time = self.edstays_time()
+        print(f"Time features shape: {edstays_time.shape}")
+        df = df.merge(edstays_time, on='stay_id', how='left')
+        print(f"After time features merge shape: {df.shape}")
+        
+        print("\nLoading triage features...")
+        triage = self.triage()
+        print(f"Triage shape: {triage.shape}")
+        triage_features = triage.drop(['subject_id', 'chiefcomplaint'], axis=1)
+        df = df.merge(triage_features, on='stay_id', how='left')
+        print(f"After triage merge shape: {df.shape}")
+        
+        print("\nCleaning up columns...")
+        df = df.drop(['intime', 'outtime', 'anchor_year', 'anchor_age', 'hadm_id'], axis=1)
+        
+        print("\nVerifying no duplicate stay_ids...")
+        initial_rows = len(df)
+        df = df.drop_duplicates()
+        final_rows = len(df)
+        if initial_rows != final_rows:
+            print(f"Warning: Removed {initial_rows - final_rows} duplicate rows")
+            # Add debugging info for duplicates
+            duplicates = df[df['stay_id'].duplicated(keep=False)].sort_values('stay_id')
+            if len(duplicates) > 0:
+                print("\nSample of duplicated rows:")
+                print(duplicates.head())
+        
         return df

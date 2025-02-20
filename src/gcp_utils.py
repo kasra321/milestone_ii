@@ -81,8 +81,6 @@ def get_bigquery_client(
         # If credentials is a string, treat it as a path
         credentials = service_account.Credentials.from_service_account_file(credentials)
     elif credentials is None:
-        # If no credentials provided, try to load from default path
-        credentials = service_account.Credentials.from_service_account_file(
-            '/home/kasra/Development/config/copper-actor-403003-f084a282499a.json'
-        )
+        # Try to use application default credentials
+        credentials, _ = default()
     return BigQueryClient(project_id, credentials)
