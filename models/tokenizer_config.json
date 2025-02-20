@@ -1,0 +1,1 @@
+{"model_name": "BAAI/bge-m3", "max_length": 512, "pooling_method": "cls"}

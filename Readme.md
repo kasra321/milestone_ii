@@ -24,3 +24,10 @@
 ## March
 
 - **Mar 3**: Final project report submission due (via Coursera and Google Docs link)
+----------------------
+
+# Setup
+
+```bash
+python -m spacy download en_core_web_sm
+```
