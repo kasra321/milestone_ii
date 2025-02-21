@@ -261,12 +261,9 @@ class MIMICDF:
         """Diagnosis codes and descriptions."""
         return self._load('diagnosis')
 
-    def ndc_mapping(self) -> pd.DataFrame:
-        """NDC to ATC-4 mapping."""
-        df = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'ndc_mapping.csv'))
-        df.columns = ['ndc', 'atc4']
-        df['ndc'] = df['ndc'].str.replace('-', '')
-        return df
+    def patients(self) -> pd.DataFrame:
+        """Patients demographics."""
+        return self._load('patients')
 
     def medications(self) -> pd.DataFrame:
         """Combined medication records from both pyxis and medrecon."""
@@ -384,6 +381,7 @@ class MIMICDF:
         df['stay_id'] = edstays['stay_id']
         df['dow'] = edstays['intime'].dt.day_name()
         df['hour'] = edstays['intime'].dt.hour
+        df['minute'] = edstays['intime'].dt.minute
         df['los_minutes'] = (edstays['outtime'] - edstays['intime']).dt.total_seconds() / 60
         
         return df
@@ -403,6 +401,13 @@ class MIMICDF:
         return stay_meds
 
     def age(self) -> pd.DataFrame:
+        """Age of subjects"""
+        age = self._load('patients')
+        # Sort by anchor_year descending and take the most recent record per subject
+        return age.sort_values('anchor_year', ascending=False).groupby('subject_id').first().reset_index()
+
+
+    def age_derived(self) -> pd.DataFrame:
         """Age of subjects - returns only the most recent age record per subject"""
         age = self._load('age')
         # Sort by anchor_year descending and take the most recent record per subject
@@ -438,7 +443,7 @@ class MIMICDF:
         df = df.merge(triage_features, on='stay_id', how='left')
         
         print("Cleaning up columns...")
-        df = df.drop(['intime', 'outtime', 'anchor_year', 'anchor_age', 'hadm_id'], axis=1)
+        df = df.drop(['intime', 'outtime', 'anchor_year', 'anchor_age', 'hadm_id', 'los_minutes'], axis=1)
         
         print(f'\n Dataframe shape: {df.shape} \n')
         print('Dataframe info: \n')
@@ -450,59 +455,5 @@ class MIMICDF:
         final_rows = len(df)
         if initial_rows != final_rows:
             print(f"Warning: Removed {initial_rows - final_rows} duplicate rows")
-        
-        return df
-
-    def ed_data_debug(self) -> pd.DataFrame:
-        """Debug version of ed_data() that prints detailed merge information"""
-        print("Loading edstays...")
-        edstays = self.edstays()
-        print(f"Edstays shape: {edstays.shape}")
-        
-        print("\nLoading demographics...")
-        demographics = self.demographics()
-        print(f"Demographics shape: {demographics.shape}")
-        df = edstays[['subject_id', 'hadm_id', 'stay_id', 'gender', 
-                      'arrival_transport', 'disposition', 'intime', 'outtime']]
-        df = df.merge(demographics[['subject_id', 'race']], on='subject_id', how='left')
-        print(f"After demographics merge shape: {df.shape}")
-        
-        print("\nLoading age data...")
-        anchor_age = self.age()[['subject_id', 'anchor_age', 'anchor_year']]
-        print(f"Age data shape: {anchor_age.shape}")
-        df = df.merge(anchor_age, on='subject_id', how='left')
-        print(f"After age merge shape: {df.shape}")
-        
-        print("\nCalculating ED visit age...")
-        df['age_at_ed'] = df['anchor_age'] + (df['intime'].dt.year - df['anchor_year'])
-        df['age_at_ed'] = df['age_at_ed'].astype('Int64')
-        
-        print("\nLoading time features...")
-        edstays_time = self.edstays_time()
-        print(f"Time features shape: {edstays_time.shape}")
-        df = df.merge(edstays_time, on='stay_id', how='left')
-        print(f"After time features merge shape: {df.shape}")
-        
-        print("\nLoading triage features...")
-        triage = self.triage()
-        print(f"Triage shape: {triage.shape}")
-        triage_features = triage.drop(['subject_id', 'chiefcomplaint'], axis=1)
-        df = df.merge(triage_features, on='stay_id', how='left')
-        print(f"After triage merge shape: {df.shape}")
-        
-        print("\nCleaning up columns...")
-        df = df.drop(['intime', 'outtime', 'anchor_year', 'anchor_age', 'hadm_id'], axis=1)
-        
-        print("\nVerifying no duplicate stay_ids...")
-        initial_rows = len(df)
-        df = df.drop_duplicates()
-        final_rows = len(df)
-        if initial_rows != final_rows:
-            print(f"Warning: Removed {initial_rows - final_rows} duplicate rows")
-            # Add debugging info for duplicates
-            duplicates = df[df['stay_id'].duplicated(keep=False)].sort_values('stay_id')
-            if len(duplicates) > 0:
-                print("\nSample of duplicated rows:")
-                print(duplicates.head())
         
         return df
