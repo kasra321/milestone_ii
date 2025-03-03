@@ -1,0 +1,57 @@
+2025-03-01 22:56:56,216 - __main__ - INFO - Loading data from directory data
+2025-03-01 22:56:56,933 - __main__ - INFO - Successfully loaded edstays (425087 rows), triage (425087 rows), and patients (364627 rows)
+2025-03-01 22:56:56,933 - __main__ - INFO - Merging triage and edstays data
+2025-03-01 22:56:57,083 - __main__ - INFO - Merging patient data for anchor_age
+2025-03-01 22:56:57,170 - __main__ - INFO - Data merge complete. Final shape: (425087, 19)
+2025-03-01 22:56:57,180 - __main__ - INFO - Starting data cleaning process
+2025-03-01 22:56:57,180 - __main__ - INFO - Mapping disposition values
+2025-03-01 22:56:57,273 - __main__ - INFO - Disposition mapping complete. Unique values: ['HOME' 'ADMITTED' nan]
+2025-03-01 22:56:57,273 - __main__ - INFO - Analyzing missing values before imputation
+2025-03-01 22:56:57,329 - __main__ - INFO - Converting acuity to numeric and handling missing values
+2025-03-01 22:56:57,333 - __main__ - INFO - Replaced 6076 missing acuity values with -1
+2025-03-01 22:56:57,333 - __main__ - INFO - Column heartrate has 15918 missing values (3.78%)
+2025-03-01 22:56:57,333 - __main__ - INFO - Column resprate has 19160 missing values (4.55%)
+2025-03-01 22:56:57,335 - __main__ - INFO - Column o2sat has 19391 missing values (4.61%)
+2025-03-01 22:56:57,335 - __main__ - INFO - Column sbp has 17105 missing values (4.06%)
+2025-03-01 22:56:57,336 - __main__ - INFO - Column temperature has 22139 missing values (5.26%)
+2025-03-01 22:56:57,336 - __main__ - INFO - Column dbp has 17898 missing values (4.25%)
+2025-03-01 22:56:57,344 - __main__ - INFO - Column pain has 11883 missing values (2.82%)
+2025-03-01 22:56:57,344 - __main__ - INFO - Column anchor_age has 75 missing values (0.02%)
+2025-03-01 22:56:57,345 - __main__ - INFO - Column anchor_age has 75 missing values (0.02%)
+2025-03-01 22:56:57,351 - __main__ - INFO - Column disposition has 377 missing values (0.09%)
+2025-03-01 22:56:57,357 - __main__ - INFO - Column chiefcomplaint has 12 missing values (0.00%)
+2025-03-01 22:56:57,358 - __main__ - INFO - Analyzing required columns for missing values:
+2025-03-01 22:56:57,433 - __main__ - INFO - Dropped 75 rows (0.02%) due to missing anchor_age
+2025-03-01 22:56:57,503 - __main__ - INFO - Dropped 377 rows (0.09%) due to missing disposition
+2025-03-01 22:56:57,572 - __main__ - INFO - Dropped 12 rows (0.00%) due to missing chiefcomplaint
+2025-03-01 22:56:57,573 - __main__ - INFO - Summary of dropped rows:
+2025-03-01 22:56:57,573 - __main__ - INFO -   - anchor_age: 75 rows (16.16% of total drops)
+2025-03-01 22:56:57,573 - __main__ - INFO -   - disposition: 377 rows (81.25% of total drops)
+2025-03-01 22:56:57,573 - __main__ - INFO -   - chiefcomplaint: 12 rows (2.59% of total drops)
+2025-03-01 22:56:57,573 - __main__ - INFO - Total rows dropped: 464 (0.11% of original data)
+2025-03-01 22:56:57,573 - __main__ - INFO - Cleaning pain values
+2025-03-01 22:56:58,705 - __main__ - INFO - Pain value cleaning: -2014 unclear values converted to NaN
+2025-03-01 22:56:58,705 - __main__ - INFO - Cleaning vital signs before imputation
+2025-03-01 22:56:58,707 - __main__ - INFO - Found 7 values outside valid range for heartrate [0-300]
+2025-03-01 22:56:58,709 - __main__ - INFO - Found 20 values outside valid range for resprate [0-99]
+2025-03-01 22:56:58,711 - __main__ - INFO - Found 47 values outside valid range for o2sat [0-100]
+2025-03-01 22:56:58,714 - __main__ - INFO - Found 15 values outside valid range for sbp [0-400]
+2025-03-01 22:56:58,715 - __main__ - INFO - Found 87 values outside valid range for temperature [30-115]
+2025-03-01 22:56:58,718 - __main__ - INFO - Found 402 values outside valid range for dbp [0-350]
+2025-03-01 22:56:58,720 - __main__ - INFO - Imputing missing vital signs
+2025-03-01 22:56:58,727 - __main__ - INFO - Imputed heartrate with median value: 84.00
+2025-03-01 22:56:58,734 - __main__ - INFO - Imputed resprate with median value: 18.00
+2025-03-01 22:56:58,740 - __main__ - INFO - Imputed o2sat with median value: 99.00
+2025-03-01 22:56:58,748 - __main__ - INFO - Imputed sbp with median value: 133.00
+2025-03-01 22:56:58,755 - __main__ - INFO - Imputed temperature with median value: 98.00
+2025-03-01 22:56:58,762 - __main__ - INFO - Imputed dbp with median value: 77.00
+2025-03-01 22:56:58,763 - __main__ - INFO - Imputed pain with mean value: 4.4
+2025-03-01 22:56:58,769 - __main__ - INFO - Imputed anchor_age with median value: 50.00
+2025-03-01 22:56:58,778 - __main__ - INFO - Data cleaning complete
+2025-03-01 22:56:58,787 - __main__ - INFO - Creating categorical features
+2025-03-01 22:57:01,291 - __main__ - INFO - Feature creation complete
+2025-03-01 22:57:01,300 - __main__ - INFO - Creating validation set with 5000 samples
+2025-03-01 22:57:01,360 - __main__ - INFO - Split complete. Train size: 415326, Validation size: 5000
+2025-03-01 22:57:01,360 - __main__ - INFO - Saving merged training data to data\merged.csv
+2025-03-01 22:57:04,130 - __main__ - INFO - Saving validation data to data\validation.csv
+2025-03-01 22:57:04,190 - __main__ - INFO - Data processing complete. Training data shape: (415326, 32)

@@ -1,9 +1,0 @@
-Metadata-Version: 2.2
-Name: mimic_clustering
-Version: 0.1
-Requires-Dist: pandas
-Requires-Dist: numpy
-Requires-Dist: seaborn
-Requires-Dist: matplotlib
-Requires-Dist: google-auth
-Dynamic: requires-dist

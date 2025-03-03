@@ -1,0 +1,15 @@
+Gitignore
+.archive
+.venv
+.vscode
+.archive
+__pycache__/
+**/__pycache__/**
+data/*
+!data/.gitkeep
+models/*
+!models/.gitkeep
+experiments/embeddings/*
+!experiments/embeddings/.gitkeep
+experiments/models/*
+!experiments/models/.gitkeep

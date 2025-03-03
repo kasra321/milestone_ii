@@ -1,229 +1,172 @@
-# MIMICDF Project Reproduction Guide
+# Milestone II: Emergency Department Data Analysis Project
+
+This project focuses on analyzing Emergency Department data from the MIMIC-IV dataset using both supervised and unsupervised learning approaches.
+
+## Project Components
+
+### [Supervised Learning](./supervised/Readme.md)
+The supervised learning component focuses on hospital admission prediction from emergency department data. Key features include:
+- Multiple modeling approaches (Logistic Regression, XGBoost, Random Forest)
+- Ensemble model implementation
+- Comprehensive feature engineering
+- Model evaluation and failure analysis
+- Detailed experiment documentation
+
+### [Unsupervised Learning](./unsupervised/README.md)
+The unsupervised learning component implements clustering models for ED patient analysis. Key features include:
+- UMAP-based dimensionality reduction
+- Gaussian Mixture Model clustering
+- Robust data preprocessing pipeline
+- Cluster visualization and interpretation
+- Comprehensive model evaluation metrics
+
+## Project Timeline
+
+![alt text](image.png)
+
+## January
+
+- **Jan 7**: Course begins; Coursera content opens
+- **Jan 13**: Teams formed and topics selected (via Google Sheets)
+- **Jan 14**: Project coaches assigned
+- **Jan 17**:
+  - Dataset reviews with faculty coach in group DMs
+  - Comprehensive Quiz (Parts A, B, C) opens
+- **Jan 21**: Draft project proposal submitted for peer review
+- **Jan 25**: Peer feedback on proposals completed
+- **Jan 27**: Submit revised project proposal for instructor review
+
+## February
+
+- **Feb 8**: First stand-up video report submission (via Slack)
+- **Feb 10**: Feedback to other teams' stand-ups due
+- **Feb 22**: Second stand-up video report submission (via Slack)
+- **Feb 24**: Feedback to other teams' second stand-ups due
+
+## March
+
+- **Mar 3**: Final project report submission due (via Coursera and Google Docs link)
+
+
+# MIMIC-IV ED Data Preprocessing Pipeline
+
+This project provides a robust data preprocessing pipeline for the MIMIC-IV Emergency Department dataset, offering both local demo data processing and full dataset access through Google Cloud Platform's BigQuery.
 
 ## Overview
-This guide outlines the steps to reproduce the clustering models in the MIMICDF project, which analyzes MIMIC-IV Emergency Department data.
 
-## Step 1: Data Preparation
-First, run the `data_preparation.ipynb` notebook:
-- Load demo data using:
-- The notebook will:
-  - Perform exploratory data analysis
-  - Clean the data
-  - Engineer features
-  - Apply transformations (robust and aggressive)
-  - Split data into training/validation sets
-  - Export transformed data to `/data/cached` directory
+The pipeline consists of two main components:
+- `gcp_utils.py`: Handles GCP authentication and BigQuery client setup
+- `mimicdf.py`: Manages data loading, preprocessing, and caching through the MIMICDF class
 
-## Step 2: Model Development
-Next, run the `model_development.ipynb` notebook:
-- The notebook automatically loads the transformed data from `/data/cached`
-- The modeling workflow includes:
-  - UMAP visualization with parameter exploration
-  - GMM clustering with different component counts
-  - Model evaluation using silhouette scores and other metrics
-  - Cluster profile visualization and interpretation
-  - Validation on held-out data
+## Prerequisites
 
-## Key Components
-- **Data Source**: Uses local demo data by default
-- **Preprocessing**: Handles missing values, outliers, and feature engineering
-- **Transformations**: Offers both robust scaling and aggressive transformations
-- **Modeling**: Focuses on Gaussian Mixture Models with UMAP visualization
-- **Evaluation**: Uses standard clustering metrics and visual inspection
+- Python 3.8+
+- Google Cloud Platform account (for full dataset access)
+- PhysioNet credentialing (for MIMIC-IV ED dataset access)
+- Required Python packages (install via `pip install -r requirements.txt`):
+  - google-cloud-bigquery
+  - pandas
+  - python-dotenv
+  - typing
 
-## Output
-The notebooks produce visualizations and model artifacts that help understand ED patient clustering patterns.
+## Setup
 
+1. Clone the repository
+```bash
+git clone <repository-url>
+cd <repository-name>
+```
 
-# MIMICDF: MIMIC-IV ED Data Interface
+2. Install dependencies
+```bash
+pip install -r requirements.txt
+```
 
-## Overview
-The `mimicdf.py` module provides an interface for accessing MIMIC-IV Emergency Department data through:
-- Google BigQuery (GCP) for complete dataset access
-- Locally stored data (Default)
+3. Configure environment variables
+Create a `.env` file in the project root:
+```env
+GCP_PROJECT_ID=your-project-id
+```
 
+4. Prepare authentication (for GCP access)
+```bash
+gcloud auth application-default login
+```
 
-## Key Methods
+## Usage
 
-### Core Data
-- `edstays()`: Base cohort with admission times and demographics
-- `demographics()`: Subject demographics with standardized race categories
+### Basic Usage
+
+```python
+from mimicdf import MIMICDF
+
+# For demo data
+mimic = MIMICDF(source='demo')
+
+# For full dataset via GCP
+mimic = MIMICDF(source='gcp')
+```
+
+### Available Tables
+
+The MIMICDF class provides access to the following base tables:
+- `edstays()`: ED stays with demographics
 - `vitals()`: Vital signs measurements
-- `triage()`: Triage assessments including acuity scores
-- `diagnosis()`: ED visit diagnosis codes
-
-### Medications
+- `triage()`: Triage assessments
 - `pyxis()`: Medication dispensing records
-- `medications()`: Combined medication records
+- `medrecon()`: Medication reconciliation records
+- `diagnosis()`: Diagnosis codes and descriptions
 
-### Preprocessed Data
-- `ed_data()`: Comprehensive dataset combining demographics, vitals, and time features
+### Derived Tables
 
-## Important Notes
-- **GCP Access**: Requires PhysioNet credentialing and proper GCP authentication
-- **Demo Data**: local CSV files in `data/demo` directory
-- **Memory Management**: Use `clear_cache()` to free memory when needed
+The class also offers preprocessed, derived tables:
+- `subjects_demographics()`: Consolidated patient demographics
+- `edstays_time()`: Time-based analysis of ED stays
+- `vitals_triage()`: Combined vital signs from regular measurements and triage
+- `medications()`: Unified medication records from pyxis and medrecon
 
+### Cache Management
 
-# Data Preprocessor Module Documentation
+Data is automatically cached for better performance:
+```python
+# Clear cache when needed
+mimic.clear_cache()
+```
 
-## Overview
-The `data_preprocessor.py` module provides a comprehensive toolkit for preparing emergency department (ED) data for analysis and modeling. It contains four main classes that handle different aspects of the data preparation pipeline.
+## Data Processing Details
 
-## Classes
+### GCP Authentication (`gcp_utils.py`)
 
-### DataExplorer
-Performs exploratory data analysis and visualization.
+The `BigQueryClient` class handles:
+- Authentication with GCP
+- Access verification for MIMIC dataset
+- Query execution and error handling
 
-**Key Methods:**
-- `summarize_missing_data()`: Analyzes and visualizes missing data patterns
-- `analyze_missing_correlations()`: Creates correlation matrix of missingness patterns
-- `plot_missingness_distribution()`: Visualizes missing data across arrival modes and dispositions
-- `plot_features_distribution()`: Creates violin plots showing feature distributions
-- `plot_qq_plot()`: Generates QQ plots to assess normality
+### Data Loading (`mimicdf.py`)
 
-### DataCleaner
-Handles data cleaning and validation operations.
+The `MIMICDF` class provides:
+- Automatic switching between demo and full dataset
+- Data preprocessing and type conversion
+- Caching mechanism for better performance
+- Standardized access to all MIMIC-IV ED tables
 
-**Key Methods:**
-- `prepare_data()`: Main method that orchestrates the cleaning process
-- `_clean_categorical()`: Filters categorical variables to valid values
-- `_clean_vitals()`: Applies physiological range checks to vital signs
-- `_clean_blood_pressure()`: Special handling for blood pressure validation
+## Error Handling
 
-### FeatureEngineer
-Creates new features from raw data.
+Common errors and solutions:
 
-**Key Methods:**
-- `engineer_features()`: Main method that creates all feature types
-- `_add_clinical_metrics()`: Calculates MAP, pulse pressure, shock index, etc.
-- `_add_vital_categories()`: Creates categorical features from vital signs
-- `_add_demographic_features()`: Adds age groups and other demographic features
-- `_add_clinical_scores()`: Calculates clinical scores like SIRS criteria
-- `_add_temporal_features()`: Creates cyclical time features
+1. BigQuery Access Error
+```python
+BigQueryAccessError: Access Denied. Please ensure:
+1. You have completed the PhysioNet credentialing process
+2. You have been granted access to MIMIC-IV ED dataset
+3. You are using the same Google account that has BigQuery access
+```
 
-### DataTransformer
-Transforms features to improve statistical properties.
+2. Demo Data Not Found
+```python
+FileNotFoundError: Demo file not found: {file_path}. 
+Please check if the demo files are present.
+```
+## Data Preprocessing Pipeline
 
-**Key Methods:**
-- `robust_transformer_fit()`: Applies robust scaling to features
-- `aggressive_transformer_fit()`: Applies more aggressive transformations including Box-Cox
-- `_boxcox_transform()`: Applies Box-Cox transformation to normalize features
-- `_cyclical_transform()`: Converts time features to sine/cosine components
-- `_validate_transformations()`: Checks normality of transformed features
-
-## Feature Sets
-The module defines several standard feature sets:
-- **aggressive_gmm_features**: Features with aggressive transformations
-- **robust_gmm_features**: Features with robust scaling
-- **pca_features**: Features suitable for PCA
-- **metadata**: ID columns and metadata
-
-## Usage in Notebook
-The `data_preperation.ipynb` notebook demonstrates the complete workflow:
-
-1. Data loading and initial exploration
-2. Missing data analysis
-3. Data cleaning
-4. Feature engineering
-5. Data transformation (both robust and aggressive)
-6. Data splitting and export
-
-# Model Development Module Documentation
-
-## Overview
-The `model_development.py` module provides a comprehensive framework for developing, evaluating, and visualizing clustering models for emergency department data analysis. It implements a modular, object-oriented approach to clustering analysis.
-
-## Classes
-
-### BaseClusteringModel
-Abstract base class that defines the interface for all clustering models.
-
-**Key Methods:**
-- `fit()`: Fits the model to input data
-- `predict()`: Predicts cluster assignments for new data
-- `get_params()`: Returns model parameters
-- `get_model_info()`: Provides detailed model information
-
-### UMAPClusteringModel
-Implements dimensionality reduction and visualization using UMAP.
-
-**Key Methods:**
-- `plot_umap_parameter_grid()`: Creates a grid of UMAP visualizations with different parameters
-- `fit_umap()`: Fits UMAP to input data with specified parameters
-
-### GMMClusteringModel
-Implements Gaussian Mixture Model clustering.
-
-**Key Methods:**
-- `fit()`: Fits GMM to input data
-- `predict()`: Assigns cluster labels to new data
-- `get_model_info()`: Returns detailed model information including means, weights, and covariances
-
-### ClusteringEvaluator
-Evaluates clustering models using standard metrics.
-
-**Key Methods:**
-- `evaluate()`: Calculates silhouette score, Calinski-Harabasz index, and Davies-Bouldin index
-- `plot_metrics()`: Visualizes evaluation metrics across parameter values
-
-### ClusteringVisualizer
-Creates visualizations for clustering results.
-
-**Key Methods:**
-- `plot_cluster_profiles()`: Creates violin plots showing feature distributions by cluster
-- `plot_cluster_scatter()`: Generates scatter plots of clusters in 2D space
-- `plot_cluster_heatmap()`: Creates heatmaps showing cluster centroids
-
-### ModelRegistry
-Stores and manages multiple clustering models.
-
-**Key Methods:**
-- `register()`: Adds a model and its evaluation results to the registry
-- `get_model()`: Retrieves a model by ID
-- `compare_models()`: Compares models based on a specific metric
-
-### ClusteringPipeline
-Orchestrates the entire clustering workflow.
-
-**Key Methods:**
-- `run_experiment()`: Runs a clustering experiment with different parameter values
-- `examine_model()`: Provides detailed analysis of a specific model
-- `plot_parameter_grid()`: Visualizes model performance across parameter values
-
-### PCATransformer
-Performs PCA dimensionality reduction.
-
-**Key Methods:**
-- `fit_transform()`: Fits PCA to data and returns transformed result
-- `transform()`: Applies fitted PCA to new data
-
-## Utility Functions
-- `radar_chart()`: Creates radar charts for visualizing cluster profiles
-
-## Usage in Notebook
-The `model_development.ipynb` notebook demonstrates the complete workflow:
-
-1. **Data Preparation:**
-   - Loading transformed data from preprocessing pipeline
-   - Defining feature sets for different experiments
-
-2. **UMAP Exploration:**
-   - Parameter grid search for UMAP visualization
-   - Comparison of different feature sets and transformations
-
-3. **GMM Clustering:**
-   - Systematic evaluation of GMM models with different numbers of components
-   - Comparison of aggressive vs. robust transformations
-   - Comparison of full feature set vs. cardiovascular-focused features
-
-4. **Model Evaluation:**
-   - Silhouette score comparison across models
-   - Detailed examination of selected models
-
-5. **Validation:**
-   - Application of selected model to validation data
-   - Visualization of cluster assignments in PCA space
-   - Analysis of cluster profiles using radar charts
-
-The notebook provides a comprehensive demonstration of how to use the module to develop, evaluate, and interpret clustering models for emergency department data.
+![alt text](data_preprocessing_pipeline.png)
