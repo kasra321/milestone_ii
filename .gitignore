@@ -1,0 +1,12 @@
+# ignore all .env files
+*.env
+*.pyc
+
+# ignore all files in data/cached directory
+data/cached/
+data/cached/*.csv
+
+# ignore pycache
+__pycache__/
+*.pyc
+src/__pycache__/
